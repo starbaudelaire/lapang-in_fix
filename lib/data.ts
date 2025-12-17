@@ -88,13 +88,9 @@ export const getUserReservations = async () => {
 
 // 4. Hitung Pendapatan BULANAN (Berdasarkan Parameter Bulan & Tahun)
 export const getMonthlyRevenue = async (month: number, year: number) => {
-  // Logic: Dari Tanggal 1 jam 00:00 s/d Tanggal Terakhir Bulan Itu jam 23:59
+  const startDate = new Date(Date.UTC(year, month - 1, 0, 17, 0, 0));
 
-  // Start Date: Tanggal 1 bulan ini (UTC)
-  const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
-
-  // End Date: Tanggal 0 bulan depan (aka Tanggal Terakhir bulan ini)
-  const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59));
+  const endDate = new Date(Date.UTC(year, month, 0, 16, 59, 59));
 
   try {
     const result = await prisma.payment.aggregate({
@@ -116,14 +112,13 @@ export const getMonthlyRevenue = async (month: number, year: number) => {
 
 // 4b. Hitung Total Booking BULANAN (Opsional, biar sinkron sama revenue)
 export const getMonthlyBookingCount = async (month: number, year: number) => {
-  const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
-  const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59));
+  const startDate = new Date(Date.UTC(year, month - 1, 0, 17, 0, 0));
+  const endDate = new Date(Date.UTC(year, month, 0, 16, 59, 59));
 
   try {
     return await prisma.reservation.count({
       where: {
         createdAt: {
-          // Booking yang DIBUAT bulan ini
           gte: startDate,
           lte: endDate,
         },

@@ -189,13 +189,22 @@ export default async function AdminDashboard({
                         <span className="font-bold text-gray-900">
                           {new Date(item.startDate).toLocaleDateString(
                             "id-ID",
-                            { day: "numeric", month: "short" }
+                            {
+                              day: "numeric",
+                              month: "short",
+                              timeZone: "Asia/Jakarta",
+                            }
                           )}
                         </span>
                         <span className="text-xs text-gray-400">
                           {new Date(item.startDate).toLocaleTimeString(
                             "id-ID",
-                            { hour: "2-digit", minute: "2-digit" }
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              timeZone: "Asia/Jakarta",
+                              hour12: false,
+                            }
                           )}
                         </span>
                       </div>
