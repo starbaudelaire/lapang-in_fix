@@ -65,8 +65,8 @@ export default async function FieldRevenueDetail({
                                 })}
                             </td>
                             <td className="px-6 py-4 text-gray-600">
-                                {res.startDate.toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' })} - 
-                                {res.endDate.toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' })}
+                                {res.startDate.toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit', timeZone: "Asia/Jakarta" })} - 
+                                {res.endDate.toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit', timeZone: "Asia/Jakarta" })}
                             </td>
                             <td className="px-6 py-4 text-right font-bold text-gray-900">
                                 Rp {res.price.toLocaleString("id-ID")}
