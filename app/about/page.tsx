@@ -12,7 +12,7 @@ const page = () => {
     <div>
       <HeaderSection
         title="Get to Know Us"
-        subTitle="Behind the courts: the team and story of Lapang.in."
+        subTitle="The Men Behind the Code."
       />
       <div className="max-w-4xl mx-auto py-20 px-4 text-center">
         <p className="text-lg text-gray-700 max-w-2xl mx-auto">
