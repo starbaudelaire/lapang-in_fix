@@ -12,7 +12,7 @@ export default function ContactPage() {
     <div className="min-h-screen bg-gray-50">
       <HeaderSection
         title="Get in Touch"
-        subTitle="We'd love to hear from you—drop us a message anytime."
+        subTitle="Drop us a message anytime."
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
