@@ -8,34 +8,27 @@ import { prisma } from "@/lib/prisma";
 import { PaymentStatus } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
+import { put } from "@vercel/blob";
 
 // ==========================================
 // HELPER: UPLOAD IMAGE
 // ==========================================
 async function saveImage(file: File | null): Promise<string> {
+  // Validasi dasar
   if (!file || file.size === 0 || file.name === "undefined") return "";
 
   try {
-    // 1. Siapin Folder public/uploads (kalo belum ada dibuat dulu)
-    const uploadDir = join(process.cwd(), "public/uploads");
-    await mkdir(uploadDir, { recursive: true });
+    // 🔥 UPLOAD LANGSUNG KE VERCEL BLOB (CLOUD)
+    // access: 'public' biar bisa dilihat semua orang
+    const blob = await put(file.name, file, {
+      access: "public",
+    });
 
-    // 2. Bikin nama file unik (biar gak bentrok)
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const filename = `${Date.now()}_${file.name.replace(/\s/g, "_")}`;
-    const filePath = join(uploadDir, filename);
-
-    // 3. Simpan file
-    await writeFile(filePath, buffer);
-
-    // 4. Balikin URL-nya (String)
-    return `/uploads/${filename}`;
+    // Balikin URL Cloud-nya (Contoh: https://fw84...public.blob.vercel-storage.com/...)
+    return blob.url;
   } catch (error) {
-    console.error("Gagal upload gambar:", error);
-    return "";
+    console.error("Gagal upload gambar ke Blob:", error);
+    return ""; // Kalo gagal, balikin string kosong biar kena validasi Zod nanti
   }
 }
 
@@ -662,9 +655,9 @@ export const verifyTicket = async (qrCode: string) => {
 
     // Cek Status Pembayaran
     if (reservation.Payment?.status !== "PAID") {
-      return { 
-        error: "Booking BELUM LUNAS / Dibatalkan!", 
-        details: reservation // Balikin data biar admin tau ini punya siapa
+      return {
+        error: "Booking BELUM LUNAS / Dibatalkan!",
+        details: reservation, // Balikin data biar admin tau ini punya siapa
       };
     }
 
@@ -673,12 +666,11 @@ export const verifyTicket = async (qrCode: string) => {
     // const bookingDate = reservation.startDate.toISOString().split("T")[0];
     // if (today !== bookingDate) return { error: "Tiket bukan untuk hari ini!" };
 
-    return { 
-      success: true, 
-      message: "TIKET VALID! Silakan Masuk.", 
-      data: reservation 
+    return {
+      success: true,
+      message: "TIKET VALID! Silakan Masuk.",
+      data: reservation,
     };
-
   } catch (error) {
     console.error("Scan Error:", error);
     return { error: "Terjadi kesalahan server saat validasi." };
