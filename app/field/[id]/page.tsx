@@ -5,8 +5,16 @@ import BookingCard from "@/components/field/booking-card";
 import { MapPinIcon } from "@heroicons/react/24/outline";
 import { auth } from "@/auth";
 import ReviewList from "@/components/field/review-list";
+
+// Force dynamic rendering to ensure the page always has the latest data.
 export const dynamic = "force-dynamic";
 
+/**
+ * A badge component that displays the type of sport field.
+ * It uses a predefined color scheme based on the sport type.
+ * @param {{ type: string }} props - The properties for the component.
+ * @param {string} props.type - The type of sport (e.g., "FUTSAL", "BASKETBALL").
+ */
 const SportBadge = ({ type }: { type: string }) => {
   const colors: Record<string, string> = {
     FUTSAL: "bg-blue-100 text-blue-800",
@@ -26,13 +34,18 @@ const SportBadge = ({ type }: { type: string }) => {
   );
 };
 
+/**
+ * Renders the detailed information page for a specific sport field.
+ * It fetches field data, including amenities and reviews, from the database.
+ * @param {{ params: Promise<{ id: string }> }} props - The properties for the page component.
+ * @param {Promise<{ id: string }>} props.params - The route parameters containing the field ID.
+ */
 export default async function FieldDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-
   const session = await auth();
 
   const field = await prisma.field.findUnique({
@@ -41,11 +54,9 @@ export default async function FieldDetailPage({
       FieldAmenities: {
         include: { Amenities: true },
       },
-      // 👇 PERBAIKAN DI SINI (SESUAI SCHEMA)
       Reviews: {
-        // 1. Pake Huruf Besar 'Reviews'
         orderBy: { createdAt: "desc" },
-        include: { user: true }, // 2. Pake Huruf Kecil 'user' (cek model Review lo)
+        include: { user: true },
       },
     },
   });
@@ -56,7 +67,6 @@ export default async function FieldDetailPage({
 
   return (
     <main className="min-h-screen bg-gray-50 pb-20">
-      {/* 1. Hero Image Section */}
       <div className="relative w-full h-[40vh] md:h-[50vh] bg-gray-900">
         <Image
           src={field.image || "/hero.jpg"}
@@ -77,31 +87,27 @@ export default async function FieldDetailPage({
             </h1>
             <div className="flex items-center text-gray-200 gap-2 text-sm md:text-base">
               <MapPinIcon className="h-5 w-5 text-[#f64e42]" />
-              {field.address || "Lokasi tidak tersedia"}
+              {field.address || "Location not available"}
             </div>
           </div>
         </div>
       </div>
 
-      {/* 2. Content Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Details (2/3 width) */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Deskripsi */}
             <div className="bg-white rounded-xl p-6 md:p-8 shadow-sm border border-gray-100">
               <h2 className="text-xl font-bold text-gray-900 mb-4">
-                Tentang Lapangan
+                About the Field
               </h2>
               <div className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-line">
                 {field.description}
               </div>
             </div>
 
-            {/* Fasilitas */}
             <div className="bg-white rounded-xl p-6 md:p-8 shadow-sm border border-gray-100">
               <h2 className="text-xl font-bold text-gray-900 mb-6">
-                Fasilitas
+                Amenities
               </h2>
               {field.FieldAmenities.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -119,19 +125,12 @@ export default async function FieldDetailPage({
                 </div>
               ) : (
                 <p className="text-gray-400 italic">
-                  Belum ada data fasilitas.
+                  No amenities data available.
                 </p>
               )}
             </div>
-
-            {/* 👇 PERBAIKAN DI SINI JUGA */}
-            <div className="mt-8">
-              {/* Panggil field.Reviews (Huruf Besar) */}
-              <ReviewList reviews={field.Reviews} />
-            </div>
           </div>
 
-          {/* Right Column: Booking Card (1/3 width) */}
           <div className="relative">
             <BookingCard
               pricePerHour={field.pricePerHour}
@@ -139,6 +138,10 @@ export default async function FieldDetailPage({
               userId={session?.user?.id}
             />
           </div>
+        </div>
+        
+        <div className="mt-8 lg:w-2/3">
+          <ReviewList reviews={field.Reviews} />
         </div>
       </div>
     </main>

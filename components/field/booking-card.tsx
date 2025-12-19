@@ -15,21 +15,9 @@ import {
 } from "@/components/ui/dialog";
 
 const TIME_SLOTS = [
-  "08:00",
-  "09:00",
-  "10:00",
-  "11:00",
-  "12:00",
-  "13:00",
-  "14:00",
-  "15:00",
-  "16:00",
-  "17:00",
-  "18:00",
-  "19:00",
-  "20:00",
-  "21:00",
-  "22:00",
+  "08:00", "09:00", "10:00", "11:00", "12:00", "13:00",
+  "14:00", "15:00", "16:00", "17:00", "18:00", "19:00",
+  "20:00", "21:00", "22:00",
 ];
 
 interface BookingCardProps {
@@ -38,6 +26,11 @@ interface BookingCardProps {
   userId?: string;
 }
 
+/**
+ * A card component for handling field bookings. It allows users to select a date,
+ * choose available time slots, and submit a reservation.
+ * @param {BookingCardProps} props - The properties for the booking card.
+ */
 export default function BookingCard({
   pricePerHour,
   fieldId,
@@ -51,12 +44,15 @@ export default function BookingCard({
   const [isBooking, setIsBooking] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  /**
+   * Fetches and sets the booked time slots for the selected date.
+   * This effect runs whenever the `date` or `fieldId` changes.
+   */
   useEffect(() => {
     const fetchBookedSlots = async () => {
       if (date) {
         setLoadingSlots(true);
         setSelectedTimes([]);
-        // Panggil Server Action buat cek slot
         const booked = await getBookedHours(fieldId, date);
         setBookedSlots(booked);
         setLoadingSlots(false);
@@ -66,7 +62,11 @@ export default function BookingCard({
     fetchBookedSlots();
   }, [date, fieldId]);
 
-  // Cek kalau jam udah lewat (biar gak bisa dibooking)
+  /**
+   * Validates if a given time slot on the selected date has already passed.
+   * @param {string} time - The time slot to check (e.g., "09:00").
+   * @returns {boolean} - True if the time slot has passed, false otherwise.
+   */
   const isTimePassed = (time: string) => {
     if (!date) return false;
     const now = new Date();
@@ -74,8 +74,12 @@ export default function BookingCard({
     return slotDate < now;
   };
 
+  /**
+   * Handles user clicks on time slots. Adds or removes the time from the
+   * `selectedTimes` array. Disabled for booked or past slots.
+   * @param {string} time - The time slot that was clicked.
+   */
   const handleTimeClick = (time: string) => {
-    // Gabungan logic: Booked atau Lewat -> Gak bisa diklik
     if (bookedSlots.includes(time) || isTimePassed(time)) return;
 
     if (selectedTimes.includes(time)) {
@@ -85,17 +89,18 @@ export default function BookingCard({
     }
   };
 
-  // Itung-itungan Duit & Jam
   const totalHours = selectedTimes.length;
   const totalPrice = totalHours * pricePerHour;
 
+  /**
+   * Handles the final booking submission. It constructs the form data
+   * and calls the `createReservation` server action.
+   */
   const handleBooking = async () => {
-    if (!date || selectedTimes.length === 0) return;
-    if (!userId) return;
+    if (!date || selectedTimes.length === 0 || !userId) return;
 
     setIsBooking(true);
 
-    // Ambil jam paling awal
     const sortedTimes = [...selectedTimes].sort();
     const startTimeStr = sortedTimes[0];
 
@@ -104,14 +109,13 @@ export default function BookingCard({
     formData.append("userId", userId);
     formData.append("startDate", `${date}T${startTimeStr}`);
     formData.append("teamName", teamName);
-
-    // [PENTING] Kirim durasi jam ke server!
     formData.append("hours", totalHours.toString());
     formData.append("price", totalPrice.toString());
 
     const result = await createReservation(formData);
 
     if (result?.error) {
+      // TODO: Handle booking error with a user-facing message
       setIsBooking(false);
     }
   };
@@ -120,29 +124,27 @@ export default function BookingCard({
     <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-6 sticky top-24">
       <div className="flex justify-between items-end mb-6">
         <div>
-          <p className="text-sm text-gray-500 font-medium">Harga per jam</p>
+          <p className="text-sm text-gray-500 font-medium">Price per hour</p>
           <h3 className="text-2xl font-bold text-gray-900">
             Rp {pricePerHour.toLocaleString("id-ID")}
           </h3>
         </div>
       </div>
 
-      {/* Team Name */}
       <div className="mb-4 space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
+        <label className="block text-sm font-medium text-gray-500">
           Team Name
         </label>
         <Input
-          placeholder="Team Name"
+          placeholder="Enter your team name"
           value={teamName}
           onChange={(e) => setTeamName(e.target.value)}
         />
       </div>
 
-      {/* Input Tanggal */}
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Pilih Tanggal Main
+        <label className="block text-sm font-medium text-gray-500 mb-2">
+          Select Date
         </label>
         <input
           type="date"
@@ -152,13 +154,12 @@ export default function BookingCard({
         />
       </div>
 
-      {/* Grid Jam */}
       <div className="mb-8">
-        <label className="flex justify-between items-center text-sm font-medium text-gray-700 mb-2">
-          <span>Pilih Jam Kosong</span>
+        <label className="flex justify-between items-center text-sm font-medium text-gray-500 mb-2">
+          <span>Select Available Hours</span>
           {loadingSlots && (
             <span className="text-xs text-[#f64e42] animate-pulse">
-              Cek jadwal...
+              Checking schedule...
             </span>
           )}
         </label>
@@ -197,7 +198,6 @@ export default function BookingCard({
           })}
         </div>
 
-        {/* Legend */}
         <div className="flex gap-4 mt-3 text-[10px] text-gray-500">
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 bg-gray-100 border border-gray-200 rounded relative overflow-hidden">
@@ -205,22 +205,21 @@ export default function BookingCard({
                     <div className="w-full h-[1px] bg-gray-300 rotate-45 transform"></div>
                 </div>
             </div>
-            Tidak Tersedia
+            Unavailable
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 bg-[#f64e42] rounded"></div>
-            Pilihanmu
+            Your Selection
           </div>
         </div>
 
         {selectedTimes.length > 0 && (
           <p className="text-xs text-gray-500 mt-2 font-medium">
-            {selectedTimes.length} jam dipilih
+            {selectedTimes.length} hours selected
           </p>
         )}
       </div>
 
-      {/* Total & Button */}
       <div className="border-t pt-4">
         <div className="flex justify-between items-center mb-4">
           <span className="font-semibold text-gray-900">Total</span>
@@ -287,7 +286,7 @@ export default function BookingCard({
           </DialogContent>
         </Dialog>
         <p className="text-xs text-center text-gray-400 mt-3">
-          Belum dikenakan biaya admin.
+          Administrative fees are not yet included.
         </p>
       </div>
     </div>

@@ -1,5 +1,3 @@
-// lib/action.ts
-
 "use server";
 
 import { auth } from "@/auth";
@@ -10,76 +8,61 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { put } from "@vercel/blob";
 
-// ==========================================
-// HELPER: UPLOAD IMAGE
-// ==========================================
+/**
+ * Uploads an image file to Vercel Blob storage.
+ * @param file - The image file to upload.
+ * @returns The public URL of the uploaded image, or an empty string if the upload fails.
+ */
 async function saveImage(file: File | null): Promise<string> {
-  // Validasi dasar
   if (!file || file.size === 0 || file.name === "undefined") return "";
 
   try {
-    // 🔥 UPLOAD LANGSUNG KE VERCEL BLOB (CLOUD)
-    // access: 'public' biar bisa dilihat semua orang
+    // Upload the file to Vercel Blob storage with public access.
     const blob = await put(file.name, file, {
       access: "public",
     });
 
-    // Balikin URL Cloud-nya (Contoh: https://fw84...public.blob.vercel-storage.com/...)
+    // Return the public URL of the uploaded file.
     return blob.url;
   } catch (error) {
-    console.error("Gagal upload gambar ke Blob:", error);
-    return ""; // Kalo gagal, balikin string kosong biar kena validasi Zod nanti
+    console.error("Image upload to Vercel Blob failed:", error);
+    // Return an empty string on failure to trigger Zod validation.
+    return "";
   }
 }
 
-// ==========================================
-// SECTION 1: ADMIN CRUD FIELD
-// ==========================================
-
+/**
+ * Server action to create a new sports field.
+ * Validates form data, uploads an image, and saves the new field to the database.
+ * @param _prevState - The previous form state (unused).
+ * @param formData - The form data containing the new field's details.
+ */
 export const createField = async (_prevState: unknown, formData: FormData) => {
   const amenitiesIds = formData.getAll("amenities") as string[];
-
-  // 1. Upload Gambar Dulu
   const imageFile = formData.get("image") as File;
   const imageUrl = await saveImage(imageFile);
 
-  // 2. Siapin Data (Fix Konversi Angka & Mapping Nama)
   const rawData = {
     name: formData.get("name"),
     description: formData.get("description"),
     address: formData.get("address"),
-    capacity: Number(formData.get("capacity")), // Convert ke Number
-    pricePerHour: Number(formData.get("price")), // Ambil dari input 'price' -> masuk ke 'pricePerHour'
+    capacity: Number(formData.get("capacity")),
+    pricePerHour: Number(formData.get("price")),
     type: formData.get("type"),
-    image: imageUrl, // Masukin URL string hasil upload tadi
+    image: imageUrl,
     amenities: amenitiesIds,
   };
-
-  console.log("📦 [CREATE] Data Processed:", rawData);
 
   const validatedFields = FieldSchema.safeParse(rawData);
 
   if (!validatedFields.success) {
-    console.error(
-      "❌ [CREATE] Zod Error:",
-      validatedFields.error.flatten().fieldErrors
-    );
     return {
       error: validatedFields.error.flatten().fieldErrors,
-      message: "Missing Fields. Failed to Create Field.",
+      message: "Missing or invalid fields. Failed to create field.",
     };
   }
 
-  const {
-    name,
-    description,
-    address,
-    capacity,
-    pricePerHour,
-    type,
-    image,
-    amenities,
-  } = validatedFields.data;
+  const { name, description, address, capacity, pricePerHour, type, image, amenities } = validatedFields.data;
 
   try {
     await prisma.field.create({
@@ -98,30 +81,32 @@ export const createField = async (_prevState: unknown, formData: FormData) => {
     });
   } catch (error) {
     console.error("Database Error:", error);
-    return { message: "Database Error: Failed to Create Field." };
+    return { message: "Database Error: Failed to create field." };
   }
 
   revalidatePath("/admin/field");
   redirect("/admin/field");
 };
 
+/**
+ * Server action to update an existing sports field.
+ * @param id - The ID of the field to update.
+ * @param _prevState - The previous form state (unused).
+ * @param formData - The form data containing the updated field details.
+ */
 export const updateField = async (
   id: string,
   _prevState: unknown,
   formData: FormData
 ) => {
   const amenitiesIds = formData.getAll("amenities") as string[];
-
-  // Logic Upload buat Edit:
-  // Cek apakah user upload gambar baru?
   const imageFile = formData.get("image") as File | string;
   let finalImageUrl = "";
 
-  // Kalau tipe-nya File dan ada isinya, berarti upload baru
+  // If a new file is uploaded, save it. Otherwise, use the existing image URL.
   if (imageFile instanceof File && imageFile.size > 0) {
     finalImageUrl = await saveImage(imageFile);
   } else if (typeof imageFile === "string") {
-    // Kalau string, berarti pake URL lama (dari hidden input)
     finalImageUrl = imageFile;
   }
 
@@ -130,7 +115,7 @@ export const updateField = async (
     description: formData.get("description"),
     address: formData.get("address"),
     capacity: Number(formData.get("capacity")),
-    pricePerHour: Number(formData.get("price") || formData.get("pricePerHour")), // Jaga-jaga support 2 nama
+    pricePerHour: Number(formData.get("price") || formData.get("pricePerHour")),
     type: formData.get("type"),
     image: finalImageUrl,
     amenities: amenitiesIds,
@@ -139,26 +124,13 @@ export const updateField = async (
   const validatedFields = FieldSchema.safeParse(rawData);
 
   if (!validatedFields.success) {
-    console.error(
-      "❌ [UPDATE] Zod Error:",
-      validatedFields.error.flatten().fieldErrors
-    );
     return {
       error: validatedFields.error.flatten().fieldErrors,
-      message: "Missing Fields. Failed to Update Field.",
+      message: "Missing or invalid fields. Failed to update field.",
     };
   }
 
-  const {
-    name,
-    description,
-    address,
-    capacity,
-    pricePerHour,
-    type,
-    image,
-    amenities,
-  } = validatedFields.data;
+  const { name, description, address, capacity, pricePerHour, type, image, amenities } = validatedFields.data;
 
   try {
     await prisma.field.update({
@@ -172,40 +144,48 @@ export const updateField = async (
         type,
         image,
         FieldAmenities: {
-          deleteMany: {},
+          deleteMany: {}, // Clear existing amenities before adding new ones
           create: amenities?.map((amenityId) => ({ amenitiesId: amenityId })),
         },
       },
     });
   } catch (error) {
     console.error("Database Error:", error);
-    return { message: "Database Error: Failed to Update Field." };
+    return { message: "Database Error: Failed to update field." };
   }
 
   revalidatePath("/admin/field");
   redirect("/admin/field");
 };
 
+/**
+ * Server action to delete a sports field by its ID.
+ * @param id - The ID of the field to delete.
+ */
 export const deleteField = async (id: string, _formData: FormData) => {
   try {
     await prisma.field.delete({ where: { id } });
+    revalidatePath("/admin/field");
   } catch (error) {
-    console.error("Failed to delete field:", error);
-    return { message: "Database Error: Failed to Delete Field." };
+    console.error("Database Error:", error);
+    return { message: "Database Error: Failed to delete field." };
   }
-  revalidatePath("/admin/field");
 };
 
-// ==========================================
-// SECTION 2: BOOKING ENGINE & PAYMENT
-// ==========================================
-
+/**
+ * Checks if a field is available for a given time range.
+ * A slot is considered unavailable if it's PAID, or if it's UNPAID but created within the last 15 minutes.
+ * @param fieldId - The ID of the field to check.
+ * @param startDate - The start time of the desired booking.
+ * @param endDate - The end time of the desired booking.
+ * @returns {Promise<boolean>} - True if available, false otherwise.
+ */
 async function checkAvailability(
   fieldId: string,
   startDate: Date,
   endDate: Date
 ) {
-  const expiredTime = new Date(Date.now() - 15 * 60 * 1000);
+  const expirationTime = new Date(Date.now() - 15 * 60 * 1000); // 15 minutes ago
 
   const existingReservation = await prisma.reservation.findFirst({
     where: {
@@ -219,65 +199,67 @@ async function checkAvailability(
             {
               AND: [
                 { Payment: { status: "UNPAID" } },
-                { createdAt: { gt: expiredTime } },
+                { createdAt: { gt: expirationTime } },
               ],
             },
           ],
         },
       ],
     },
-    include: { Payment: true },
   });
 
   return !existingReservation;
 }
 
-const parseWIB = (str: string) => {
+/**
+ * Parses a string in "YYYY-MM-DDTHH:mm" format (assuming WIB, UTC+7) and converts it to a native UTC Date object.
+ * @param str - The date-time string to parse.
+ * @returns A Date object in UTC, or null if parsing fails.
+ */
+const parseWIB = (str: string): Date | null => {
   if (!str) return null;
   const parts = str.split("T");
   if (parts.length < 2) return null;
 
-  const datePart = parts[0];
-  const timePart = parts[1];
-
-  const [year, month, day] = datePart.split("-").map(Number);
-  const [hour, minute] = timePart.split(":").map(Number);
+  const [year, month, day] = parts[0].split("-").map(Number);
+  const [hour, minute] = parts[1].split(":").map(Number);
 
   if (isNaN(year) || isNaN(hour)) return null;
 
-  // Convert WIB (UTC+7) ke UTC Native
+  // Convert WIB (UTC+7) to native UTC for database storage
   return new Date(Date.UTC(year, month - 1, day, hour - 7, minute, 0));
 };
 
+/**
+ * Server action to create a new reservation for a sports field.
+ * It checks availability, calculates pricing, and creates the reservation and payment records in a transaction.
+ * @param formData - The form data containing reservation details.
+ */
 export const createReservation = async (formData: FormData) => {
   const session = await auth();
-  if (!session?.user?.id) return { error: "Login dulu bos!" };
+  if (!session?.user?.id) {
+    return { error: "Authentication required. Please sign in." };
+  }
   const userId = session.user.id;
 
   const fieldId = formData.get("fieldId") as string;
   const startDateStr = formData.get("startDate") as string;
-
-  // [PENTING] Baca durasi jam yang dikirim dari BookingCard
   const hours = Number(formData.get("hours")) || 1;
-
   const fieldPrice = Number(formData.get("price"));
 
   const startDate = parseWIB(startDateStr);
-
   if (!startDate || isNaN(startDate.getTime())) {
-    return { error: "Format tanggal ngaco nih! Coba refresh." };
+    return { error: "Invalid date format. Please refresh and try again." };
   }
 
-  // Hitung EndDate di server (Start + Durasi)
+  // Calculate end time on the server for security
   const endDate = new Date(startDate.getTime() + hours * 60 * 60 * 1000);
 
   const isAvailable = await checkAvailability(fieldId, startDate, endDate);
-
   if (!isAvailable) {
-    return { error: "Yah, telat! Jam segitu udah dibooking orang lain bro." };
+    return { error: "Sorry, the selected time slot is no longer available." };
   }
 
-  // --- LOGIC HARGA & KODE UNIK ---
   const appFee = Math.floor(fieldPrice * 0.1);
   const uniqueCode = Math.floor(Math.random() * 999) + 1;
   const totalAmount = fieldPrice + appFee + uniqueCode;
@@ -285,8 +267,8 @@ export const createReservation = async (formData: FormData) => {
   let reservationId = "";
 
   try {
+    // Use a transaction to ensure atomicity
     await prisma.$transaction(async (tx) => {
-      // 1. Buat Reservasi
       const reservation = await tx.reservation.create({
         data: {
           userId,
@@ -299,7 +281,6 @@ export const createReservation = async (formData: FormData) => {
 
       reservationId = reservation.id;
 
-      // 2. Buat Payment (FIXED: Pake connect)
       await tx.payment.create({
         data: {
           amount: totalAmount,
@@ -312,20 +293,24 @@ export const createReservation = async (formData: FormData) => {
       });
     });
   } catch (error) {
-    console.error("Booking Failed:", error);
-    return { error: "Sistem error nih, gagal booking." };
+    console.error("Reservation failed:", error);
+    return { error: "An unexpected error occurred. Failed to create reservation." };
   }
 
   revalidatePath("/field");
   redirect(`/booking/payment/${reservationId}`);
 };
 
+/**
+ * Server action to confirm a payment method for a reservation.
+ * @param formData - The form data containing the reservation ID and payment method.
+ */
 export const confirmPayment = async (formData: FormData) => {
   const reservationId = formData.get("reservationId") as string;
   const paymentMethod = formData.get("paymentMethod") as string;
 
   if (!reservationId || !paymentMethod) {
-    return { error: "Pilih metode pembayaran dulu bro!" };
+    return { error: "Please select a payment method." };
   }
 
   try {
@@ -337,29 +322,37 @@ export const confirmPayment = async (formData: FormData) => {
     });
   } catch (error) {
     console.error("Confirm Payment Failed:", error);
-    return { error: "Gagal konfirmasi pembayaran." };
+    return { error: "Failed to confirm payment method." };
   }
 
   revalidatePath("/myreservation");
   redirect("/booking/success?id=" + reservationId);
 };
 
+/**
+ * Server action to cancel an unpaid reservation.
+ * @param reservationId - The ID of the reservation to cancel.
+ */
 export const cancelReservation = async (reservationId: string) => {
   if (!reservationId) return;
 
   try {
+    // Note: Relies on cascading delete in schema to also delete the associated payment
     await prisma.reservation.delete({
       where: { id: reservationId },
     });
-
     revalidatePath("/field");
   } catch (error) {
-    console.error("Gagal cancel booking:", error);
+    console.error("Failed to cancel reservation:", error);
   }
 
   redirect("/");
 };
 
+/**
+ * Server action for admins to update the payment status of a reservation.
+ * @param formData - The form data containing the reservation ID and new status.
+ */
 export const updateReservationStatus = async (formData: FormData) => {
   const reservationId = formData.get("reservationId") as string;
   const newStatus = formData.get("status") as PaymentStatus;
@@ -374,16 +367,18 @@ export const updateReservationStatus = async (formData: FormData) => {
     revalidatePath("/admin/revenue");
     revalidatePath("/admin/dashboard");
   } catch (error) {
-    console.error("Gagal update status:", error);
+    console.error("Failed to update status:", error);
   }
 };
 
-// ==========================================
-// SECTION 4: CLIENT DATA FETCHERS
-// ==========================================
-
+/**
+ * Fetches the booked time slots for a specific field on a given date.
+ * @param fieldId - The ID of the field.
+ * @param dateStr - The date in "YYYY-MM-DD" format.
+ * @returns An array of booked time slots in "HH:mm" format.
+ */
 export const getBookedHours = async (fieldId: string, dateStr: string) => {
-  const expiredTime = new Date(Date.now() - 15 * 60 * 1000);
+  const expirationTime = new Date(Date.now() - 15 * 60 * 1000);
 
   const reservations = await prisma.reservation.findMany({
     where: {
@@ -393,7 +388,7 @@ export const getBookedHours = async (fieldId: string, dateStr: string) => {
         {
           AND: [
             { Payment: { status: "UNPAID" } },
-            { createdAt: { gt: expiredTime } },
+            { createdAt: { gt: expirationTime } },
           ],
         },
       ],
@@ -402,56 +397,50 @@ export const getBookedHours = async (fieldId: string, dateStr: string) => {
   });
 
   const bookedSlots: string[] = [];
-  const HOUR_MS = 60 * 60 * 1000;
+  const HOUR_IN_MS = 60 * 60 * 1000;
 
   reservations.forEach((res) => {
     let currentMs = res.startDate.getTime();
     const endMs = res.endDate.getTime();
 
-    // Loop per jam sampai kurang dari end time
+    // Iterate through each hour of the reservation duration
     while (currentMs < endMs) {
-      // Konversi UTC ke WIB (+7 Jam) buat dapetin string jam yg bener
-      const wibDate = new Date(currentMs + 7 * HOUR_MS);
-
+      // Convert from UTC to WIB (UTC+7) to get the correct local time string
+      const wibDate = new Date(currentMs + 7 * HOUR_IN_MS);
       const resDateStr = wibDate.toISOString().split("T")[0]; // YYYY-MM-DD
       const resTimeStr = wibDate.toISOString().split("T")[1].substring(0, 5); // HH:mm
 
       if (resDateStr === dateStr) {
         bookedSlots.push(resTimeStr);
       }
-
-      currentMs += HOUR_MS; // Tambah 1 jam
+      currentMs += HOUR_IN_MS;
     }
   });
 
-  return Array.from(new Set(bookedSlots));
+  return Array.from(new Set(bookedSlots)); // Return unique slots
 };
 
-// ==========================================
-// SECTION 5: REVENUE & ANALYTICS
-// ==========================================
-
+/**
+ * Fetches revenue data for all fields, including total app revenue.
+ * Only considers reservations with a "PAID" status.
+ */
 export const getRevenueData = async () => {
-  // Ambil semua lapangan beserta reservasi yang SUDAH BAYAR (PAID)
   const fields = await prisma.field.findMany({
     include: {
       Reservations: {
-        where: { Payment: { status: "PAID" } }, // Cuma itung yang udah lunas
+        where: { Payment: { status: "PAID" } },
         include: { Payment: true },
       },
     },
   });
 
-  let totalAppRevenue = 0; // Buat nampung Fee + Kode Unik
+  let totalAppRevenue = 0;
 
   const fieldRevenues = fields.map((field) => {
     let fieldIncome = 0;
 
     field.Reservations.forEach((res) => {
-      // 1. Tambahin duit jatah lapangan
       fieldIncome += res.price;
-
-      // 2. Tambahin duit jatah App (Total Transfer - Harga Lapangan)
       if (res.Payment) {
         const appShare = res.Payment.amount - res.price;
         totalAppRevenue += appShare;
@@ -473,6 +462,10 @@ export const getRevenueData = async () => {
   };
 };
 
+/**
+ * Fetches detailed revenue information for a single field.
+ * @param fieldId - The ID of the field to retrieve details for.
+ */
 export const getFieldRevenueDetail = async (fieldId: string) => {
   const field = await prisma.field.findUnique({
     where: { id: fieldId },
@@ -495,57 +488,55 @@ export const getFieldRevenueDetail = async (fieldId: string) => {
   return { field, reservations };
 };
 
+/**
+ * Fetches the application's revenue history from all paid reservations.
+ * @returns An array of objects, each representing a transaction and the app's revenue from it.
+ */
 export const getAppRevenueHistory = async () => {
   try {
     const reservations = await prisma.reservation.findMany({
       where: {
-        Payment: { status: "PAID" }, // Kita cuma mau yang udah cair alias PAID
+        Payment: { status: "PAID" },
       },
       include: {
         User: true,
         Field: true,
         Payment: true,
       },
-      orderBy: { createdAt: "desc" }, // Dari yang paling fresh
+      orderBy: { createdAt: "desc" },
     });
 
-    // Kita mapping datanya biar enak dikonsumsi di frontend
     const history = reservations.map((res) => {
       const totalPaid = res.Payment?.amount || 0;
       const fieldPrice = res.price;
-
-      // Ini logic "cuan" aplikasi lo: Total Transfer - Jatah Lapangan
       const appRevenue = totalPaid - fieldPrice;
 
       return {
         id: res.id,
-        bookingCode: res.id.slice(-5).toUpperCase(), // Biar ada kode booking pendek
-        user: res.User.name || "User Tanpa Nama",
+        bookingCode: res.id.slice(-5).toUpperCase(),
+        user: res.User.name || "Unnamed User",
         userEmail: res.User.email,
         field: res.Field.name,
         date: res.startDate,
-        appRevenue: appRevenue, // <--- Ini duit jatah elo
+        appRevenue: appRevenue,
       };
     });
 
     return history;
   } catch (error) {
-    console.error("Gagal ambil history revenue app:", error);
+    console.error("Failed to fetch app revenue history:", error);
     return [];
   }
 };
 
-// ==========================================
-// SECTION 6: REVIEW SYSTEM
-// ==========================================
-
+/**
+ * Server action to create a new review for a field.
+ * @param formData - The form data containing the review details.
+ */
 export const createReview = async (formData: FormData) => {
-  console.log("🚀 createReview dipanggil!");
-
   const session = await auth();
   if (!session?.user?.id) {
-    console.log("❌ Error: User gak ada session");
-    return { error: "Sesi habis, login lagi gih." };
+    return { error: "Authentication required. Please sign in." };
   }
 
   const reservationId = formData.get("reservationId") as string;
@@ -553,20 +544,13 @@ export const createReview = async (formData: FormData) => {
   const rating = parseInt(formData.get("rating") as string);
   const comment = formData.get("comment") as string;
 
-  console.log("📦 Data Review:", { reservationId, fieldId, rating, comment });
-
-  if (!rating || !comment) return { error: "Bintang & Komen wajib diisi!" };
-  if (!reservationId || !fieldId)
-    return { error: "Data ID tidak valid (Corrupt)." };
+  if (!rating || !comment) return { error: "Rating and comment are required." };
+  if (!reservationId || !fieldId) return { error: "Invalid form data." };
 
   try {
-    const reservation = await prisma.reservation.findUnique({
-      where: { id: reservationId },
-    });
-
-    if (!reservation) return { error: "Booking tidak ditemukan." };
-    if (reservation.userId !== session.user.id)
-      return { error: "Bukan bookingan lo!" };
+    const reservation = await prisma.reservation.findUnique({ where: { id: reservationId } });
+    if (!reservation) return { error: "Booking not found." };
+    if (reservation.userId !== session.user.id) return { error: "This reservation does not belong to you." };
 
     await prisma.review.create({
       data: {
@@ -578,10 +562,9 @@ export const createReview = async (formData: FormData) => {
       },
     });
 
-    console.log("✅ Review sukses masuk DB!");
   } catch (error) {
-    console.error("🔥 Error Prisma:", error);
-    return { error: "Gagal simpan ke database." };
+    console.error("Prisma Error creating review:", error);
+    return { error: "Database error: Failed to save review." };
   }
 
   revalidatePath("/myreservation");
@@ -590,10 +573,11 @@ export const createReview = async (formData: FormData) => {
   return { success: true };
 };
 
-// ==========================================
-// SECTION 7: CONTACT US (MESSAGE)
-// ==========================================
-
+/**
+ * Server action to save a contact message from a user.
+ * @param _prevState - The previous form state (unused).
+ * @param formData - The form data containing the contact message.
+ */
 export const saveMessage = async (_prevState: unknown, formData: FormData) => {
   const name = formData.get("name") as string;
   const email = formData.get("email") as string;
@@ -601,43 +585,34 @@ export const saveMessage = async (_prevState: unknown, formData: FormData) => {
   const message = formData.get("message") as string;
 
   if (!name || !email || !message) {
-    return { error: "Nama, Email, dan Pesan wajib diisi!" };
+    return { error: "Name, Email, and Message fields are required." };
   }
 
   try {
     await prisma.message.create({
-      data: {
-        name,
-        email,
-        subject: subject || "No Subject",
-        message,
-      },
+      data: { name, email, subject: subject || "No Subject", message },
     });
 
     return {
       success: true,
-      message: "Pesan berhasil dikirim! Terima Kasih telah menghubungi kami!",
+      message: "Message sent successfully! Thank you for contacting us.",
     };
   } catch (error) {
-    console.error("Gagal simpan pesan:", error);
-    return { error: "Gagal mengirim pesan. Silakan coba lagi nanti." };
+    console.error("Failed to save message:", error);
+    return { error: "Failed to send message. Please try again later." };
   }
 };
 
-//
-
-// ... codingan yang lain biarin ...
-
-// ==========================================
-// SECTION 8: ADMIN SCANNER (VALIDASI TIKET)
-// ==========================================
-
+/**
+ * Server action to verify a booking ticket via its QR code.
+ * The QR code is expected to contain "BOOKING-<reservationId>".
+ * @param qrCode - The full string scanned from the QR code.
+ * @returns An object indicating success or failure, with reservation details on success.
+ */
 export const verifyTicket = async (qrCode: string) => {
-  // Format QR kita kan: "BOOKING-clqxxxxx..."
-  // Jadi kita harus buang prefix "BOOKING-" dulu
   const bookingId = qrCode.replace("BOOKING-", "");
 
-  if (!bookingId) return { error: "QR Code tidak valid/kosong." };
+  if (!bookingId) return { error: "Invalid or empty QR Code." };
 
   try {
     const reservation = await prisma.reservation.findUnique({
@@ -650,29 +625,23 @@ export const verifyTicket = async (qrCode: string) => {
     });
 
     if (!reservation) {
-      return { error: "Booking TIDAK DITEMUKAN dalam database!" };
+      return { error: "Booking not found in the database." };
     }
 
-    // Cek Status Pembayaran
     if (reservation.Payment?.status !== "PAID") {
       return {
-        error: "Booking BELUM LUNAS / Dibatalkan!",
-        details: reservation, // Balikin data biar admin tau ini punya siapa
+        error: "This booking is UNPAID or has been canceled.",
+        details: reservation,
       };
     }
 
-    // Cek Tanggal (Optional: Kalo mau strict cuma bisa scan hari H)
-    // const today = new Date().toISOString().split("T")[0];
-    // const bookingDate = reservation.startDate.toISOString().split("T")[0];
-    // if (today !== bookingDate) return { error: "Tiket bukan untuk hari ini!" };
-
     return {
       success: true,
-      message: "TIKET VALID! Silakan Masuk.",
+      message: "TICKET VALID! Please proceed.",
       data: reservation,
     };
   } catch (error) {
-    console.error("Scan Error:", error);
-    return { error: "Terjadi kesalahan server saat validasi." };
+    console.error("Ticket verification scan error:", error);
+    return { error: "A server error occurred during validation." };
   }
 };

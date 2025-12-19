@@ -16,14 +16,21 @@ const SignInPage = () => {
         fill
         className="object-cover object-center w-full h-full"
       />
-      <div className="relative bg-white max-w-sm w-full rounded-2xl shadow-lg p-8 z-10">
+      <div className="relative bg-white/30 backdrop-blur-md border border-white/20 shadow-xl max-w-sm w-full rounded-2xl p-8 z-10">
         <Link href="/" className="flex justify-center mb-6">
-          <Image src="/lapang-in.png" width={120} height={46} alt="logo" />
+          <Image
+            src="/lapang-in.png"
+            width={120}
+            height={46}
+            alt="logo"
+          />
         </Link>
 
         <div className="text-center">
-          <h1 className="text-3xl font-semibold mb-1">Sign In</h1>
-          <p className="font-medium mb-6 text-gray-500">
+          <h1 className="text-3xl font-bold text-white mb-1 tracking-tight">
+            Sign In
+          </h1>
+          <p className="font-medium mb-6 text-gray-200">
             Sign In to Your Account
           </p>
         </div>

@@ -3,18 +3,34 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { IoClose, IoMenu, IoPersonOutline } from "react-icons/io5";
-import { QrCodeIcon } from "@heroicons/react/24/outline"; // 👈 Import Icon QR
+import { IoMenu, IoPersonOutline } from "react-icons/io5";
+import { QrCodeIcon } from "@heroicons/react/24/outline";
 import clsx from "clsx";
 import { useSession, signOut } from "next-auth/react";
+import {
+  Sheet,
+  SheetTrigger,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetPortal,
+} from "@/components/ui/sheet";
 
+/**
+ * Renders the main navigation bar for the application.
+ * It includes responsive handling for desktop and mobile views,
+ * conditional links based on user authentication status and role (admin/user),
+ * and a mobile-friendly sheet menu.
+ */
 const Navbar = () => {
-  const [open, setOpen] = useState(false); // Mobile menu
+  const [open, setOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const { data: session } = useSession();
 
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
+  // Close profile dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -30,13 +46,12 @@ const Navbar = () => {
     };
   }, [profileMenuRef]);
 
-  // Shortcut check admin
   const isAdmin = session?.user?.role === "admin";
 
   return (
-    <div className="fixed top-0 w-full z-20 bg-black/40 backdrop-blur-md">
+    <div className="fixed top-0 w-full z-50 bg-white/10 backdrop-blur-md border-b border-white/20 shadow-sm transition-all">
       <div className="max-w-screen-xl mx-auto p-4">
-        {/* --- Versi Desktop --- */}
+        {/* Desktop Navigation */}
         <div className="hidden md:flex justify-center items-center space-x-6">
           <Link href="/">
             <Image
@@ -48,28 +63,26 @@ const Navbar = () => {
             />
           </Link>
 
-          {/* 1. HOME / DASHBOARD */}
           {isAdmin ? (
             <Link
               href="/admin/dashboard"
-              className="font-light text-sm text-white hover:text-primary"
+              className="font-light text-sm text-white hover:text-white/80 transition-colors"
             >
               Dashboard
             </Link>
           ) : (
             <Link
               href="/"
-              className="font-light text-sm text-white hover:text-primary"
+              className="font-light text-sm text-white hover:text-white/80 transition-colors"
             >
               Home
             </Link>
           )}
 
-          {/* 2. FIELDS (Cuma buat user biasa) */}
           {!isAdmin && (
             <Link
               href="/field"
-              className="font-light text-sm text-white hover:text-primary"
+              className="font-light text-sm text-white hover:text-white/80 transition-colors"
             >
               Fields
             </Link>
@@ -77,28 +90,26 @@ const Navbar = () => {
 
           {session && (
             <>
-              {/* 3. SCHEDULE / REVENUE */}
               {isAdmin ? (
                 <Link
                   href="/admin/revenue"
-                  className="font-light text-sm text-white hover:text-primary"
+                  className="font-light text-sm text-white hover:text-white/80 transition-colors"
                 >
                   Revenue
                 </Link>
               ) : (
                 <Link
                   href="/myreservation"
-                  className="font-light text-sm text-white hover:text-primary"
+                  className="font-light text-sm text-white hover:text-white/80 transition-colors"
                 >
                   Schedule
                 </Link>
               )}
 
-              {/* 4. MANAGE (Khusus Admin) */}
               {isAdmin && (
                 <Link
                   href="/admin/field"
-                  className="font-light text-sm text-white hover:text-primary"
+                  className="font-light text-sm text-white hover:text-white/80 transition-colors"
                 >
                   Manage
                 </Link>
@@ -106,36 +117,32 @@ const Navbar = () => {
             </>
           )}
 
-          {/* 👇 LOGIC: ABOUT vs SCAN QR 👇 */}
           {isAdmin ? (
             <Link
               href="/admin/scan"
-              className="font-light text-sm text-white hover:text-primary flex items-center gap-1"
+              className="font-light text-sm text-white hover:text-white/80 transition-colors flex items-center gap-1"
             >
-              <QrCodeIcon className="w-4 h-4" /> {/* Icon QR Biar Keren */}
+              <QrCodeIcon className="w-4 h-4" />
               Scan QR
             </Link>
           ) : (
             <Link
               href="/about"
-              className="font-light text-sm text-white hover:text-primary"
+              className="font-light text-sm text-white hover:text-white/80 transition-colors"
             >
               About
             </Link>
           )}
-          {/* 👆 END LOGIC 👆 */}
 
-          {/* 5. CONTACT (Cuma buat user biasa) */}
           {!isAdmin && (
             <Link
               href="/contact"
-              className="font-light text-sm text-white hover:text-primary"
+              className="font-light text-sm text-white hover:text-white/80 transition-colors"
             >
               Contact
             </Link>
           )}
 
-          {/* Auth Desktop */}
           <div className="relative" ref={profileMenuRef}>
             {session ? (
               <>
@@ -184,13 +191,13 @@ const Navbar = () => {
               </>
             ) : (
               <Link href="/signin">
-                <IoPersonOutline className="size-5 text-white hover:text-primary" />
+                <IoPersonOutline className="size-5 text-white hover:text-white/80 transition-colors" />
               </Link>
             )}
           </div>
         </div>
 
-        {/* --- Versi Mobile --- */}
+        {/* Mobile Navigation */}
         <div className="flex md:hidden justify-between items-center">
           <Link href="/">
             <Image
@@ -201,170 +208,171 @@ const Navbar = () => {
               priority
             />
           </Link>
-          <button
-            onClick={() => setOpen(!open)}
-            className="inline-flex items-center p-2 justify-center text-sm rounded-md text-white hover:bg-black/10"
-          >
-            {!open ? (
-              <IoMenu className="size-8" />
-            ) : (
-              <IoClose className="size-8" />
-            )}
-          </button>
-        </div>
-      </div>
 
-      {/* --- Mobile Menu Dropdown --- */}
-      <div
-        className={clsx("md:hidden", {
-          "block absolute top-full left-0 w-full bg-white shadow-md": open,
-          hidden: !open,
-        })}
-      >
-        <ul className="flex flex-col font-normal p-4 mt-0 text-gray-800">
-          <li>
-            {isAdmin ? (
-              <Link
-                href="/admin/dashboard"
-                className="block py-2 px-3 hover:text-primary"
-                onClick={() => setOpen(false)}
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <button className="inline-flex items-center p-2 justify-center text-sm rounded-md text-white hover:bg-white/20 z-50">
+                <IoMenu className="size-8" />
+              </button>
+            </SheetTrigger>
+            <SheetPortal>
+              <SheetContent
+                side="right"
+                className="w-[300px] sm:w-[400px] bg-white z-[9999]"
               >
-                Dashboard
-              </Link>
-            ) : (
-              <Link
-                href="/"
-                className="block py-2 px-3 hover:text-primary"
-                onClick={() => setOpen(false)}
-              >
-                Home
-              </Link>
-            )}
-          </li>
-
-          {/* Logic Field Mobile */}
-          {!isAdmin && (
-            <li>
-              <Link
-                href="/field"
-                className="block py-2 px-3 hover:text-primary"
-                onClick={() => setOpen(false)}
-              >
-                Fields
-              </Link>
-            </li>
-          )}
-
-          {session && (
-            <>
-              <li>
-                {isAdmin ? (
-                  <Link
-                    href="/admin/revenue"
-                    className="block py-2 px-3 hover:text-primary"
-                    onClick={() => setOpen(false)}
-                  >
-                    Revenue
+              <SheetHeader>
+                <SheetTitle className="sr-only">Mobile Menu</SheetTitle>
+                <SheetDescription className="sr-only">
+                  Navigation links
+                </SheetDescription>
+                <div className="flex items-center justify-start mb-6">
+                  <Link href="/" onClick={() => setOpen(false)}>
+                    <Image
+                      src="/lapang-in.png"
+                      width={40}
+                      height={40}
+                      alt="logo"
+                    />
                   </Link>
-                ) : (
-                  <Link
-                    href="/myreservation"
-                    className="block py-2 px-3 hover:text-primary"
-                    onClick={() => setOpen(false)}
-                  >
-                    Schedule
-                  </Link>
-                )}
-              </li>
-              {isAdmin && (
-                <>
-                  <li className="border-t border-gray-200 my-2"></li>
-                  <li>
-                    <Link
-                      href="/admin/field"
-                      className="block py-2 px-3 hover:text-primary"
-                      onClick={() => setOpen(false)}
-                    >
-                      Manage Fields
-                    </Link>
-                  </li>
-                </>
-              )}
-            </>
-          )}
-
-          {/* 👇 LOGIC MOBILE: ABOUT vs SCAN QR 👇 */}
-          <li>
-            {isAdmin ? (
-              <Link
-                href="/admin/scan"
-                className="block py-2 px-3 hover:text-primary flex items-center gap-2"
-                onClick={() => setOpen(false)}
-              >
-                <QrCodeIcon className="w-5 h-5 inline" /> Scan QR Ticket
-              </Link>
-            ) : (
-              <Link
-                href="/about"
-                className="block py-2 px-3 hover:text-primary"
-                onClick={() => setOpen(false)}
-              >
-                About
-              </Link>
-            )}
-          </li>
-          {/* 👆 END LOGIC MOBILE 👆 */}
-
-          {/* Logic Contact Mobile */}
-          {!isAdmin && (
-            <li>
-              <Link
-                href="/contact"
-                className="block py-2 px-3 hover:text-primary"
-                onClick={() => setOpen(false)}
-              >
-                Contact
-              </Link>
-            </li>
-          )}
-
-          <li className="border-t border-gray-200 my-2"></li>
-          {session ? (
-            <>
-              <li>
-                <div className="px-3 py-2">
-                  <span className="block text-sm font-semibold text-gray-900">
-                    {session.user.name}
-                  </span>
-                  <span className="block text-sm text-gray-500 truncate">
-                    {session.user.email}
-                  </span>
                 </div>
-              </li>
-              <li>
-                <button
-                  onClick={() => {
-                    setOpen(false);
-                    signOut();
-                  }}
-                  className="block w-full text-left py-2 px-3 text-red-600 hover:bg-gray-100"
-                >
-                  Sign Out
-                </button>
-              </li>
-            </>
-          ) : (
-            <li className="pt-2">
-              <Link
-                href="/signin"
-                className="py-2.5 px-6 bg-primary text-white text-center block hover:bg-primary/90 rounded-sm"
-                onClick={() => setOpen(false)}
-              >
-                Sign In
-              </Link>
-            </li>
-          )}
-        </ul>
+              </SheetHeader>
+              <div className="flex flex-col gap-6 mt-6">
+                <ul className="flex flex-col space-y-4 font-medium text-gray-900">
+                  <li>
+                    {isAdmin ? (
+                      <Link
+                        href="/admin/dashboard"
+                        className="block py-2 hover:text-gray-600 border-b border-gray-100"
+                        onClick={() => setOpen(false)}
+                      >
+                        Dashboard
+                      </Link>
+                    ) : (
+                      <Link
+                        href="/"
+                        className="block py-2 hover:text-gray-600 border-b border-gray-100"
+                        onClick={() => setOpen(false)}
+                      >
+                        Home
+                      </Link>
+                    )}
+                  </li>
+
+                  {!isAdmin && (
+                    <li>
+                      <Link
+                        href="/field"
+                        className="block py-2 hover:text-gray-600 border-b border-gray-100"
+                        onClick={() => setOpen(false)}
+                      >
+                        Fields
+                      </Link>
+                    </li>
+                  )}
+
+                  {session && (
+                    <>
+                      <li>
+                        {isAdmin ? (
+                          <Link
+                            href="/admin/revenue"
+                            className="block py-2 hover:text-gray-600 border-b border-gray-100"
+                            onClick={() => setOpen(false)}
+                          >
+                            Revenue
+                          </Link>
+                        ) : (
+                          <Link
+                            href="/myreservation"
+                            className="block py-2 hover:text-gray-600 border-b border-gray-100"
+                            onClick={() => setOpen(false)}
+                          >
+                            Schedule
+                          </Link>
+                        )}
+                      </li>
+                      {isAdmin && (
+                        <li>
+                          <Link
+                            href="/admin/field"
+                            className="block py-2 hover:text-gray-600 border-b border-gray-100"
+                            onClick={() => setOpen(false)}
+                          >
+                            Manage Fields
+                          </Link>
+                        </li>
+                      )}
+                    </>
+                  )}
+                  <li>
+                    {isAdmin ? (
+                      <Link
+                        href="/admin/scan"
+                        className="block py-2 hover:text-gray-600 flex items-center gap-2 border-b border-gray-100"
+                        onClick={() => setOpen(false)}
+                      >
+                        <QrCodeIcon className="w-5 h-5 inline" /> Scan QR Ticket
+                      </Link>
+                    ) : (
+                      <Link
+                        href="/about"
+                        className="block py-2 hover:text-gray-600 border-b border-gray-100"
+                        onClick={() => setOpen(false)}
+                      >
+                        About
+                      </Link>
+                    )}
+                  </li>
+
+                  {!isAdmin && (
+                    <li>
+                      <Link
+                        href="/contact"
+                        className="block py-2 hover:text-gray-600 border-b border-gray-100"
+                        onClick={() => setOpen(false)}
+                      >
+                        Contact
+                      </Link>
+                    </li>
+                  )}
+
+                  {session ? (
+                    <li className="pt-4">
+                      <div className="mb-4">
+                        <span className="block text-sm font-semibold text-gray-900">
+                          {session.user.name}
+                        </span>
+                        <span className="block text-sm text-gray-500 truncate">
+                          {session.user.email}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setOpen(false);
+                          signOut();
+                        }}
+                        className="w-full text-left py-2 text-red-600 hover:text-red-700 font-semibold"
+                      >
+                        Sign Out
+                      </button>
+                    </li>
+                  ) : (
+                    <li className="pt-4">
+                      <Link
+                        href="/signin"
+                        className="block w-full text-center py-3 bg-[#0A84FF] text-white font-semibold rounded-lg shadow hover:bg-[#0666cc] transition-all"
+                        onClick={() => setOpen(false)}
+                      >
+                        Sign In
+                      </Link>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </SheetContent>
+            </SheetPortal>
+          </Sheet>
+        </div>
       </div>
     </div>
   );
